@@ -1,0 +1,235 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SearchWise | Search smarter</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b1020;
+      color: #f4f6ff;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 24px 7%;
+      border-bottom: 1px solid #242b43;
+      font-weight: bold;
+      font-size: 22px;
+    }
+
+    header span { color: #8c9eff; }
+
+    main {
+      width: min(850px, 90%);
+      margin: 65px auto;
+    }
+
+    .tag {
+      color: #aab6ff;
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: clamp(36px, 6vw, 58px);
+      margin: 15px 0;
+      line-height: 1.1;
+    }
+
+    h1 span { color: #9aa9ff; }
+
+    .subtitle {
+      color: #b1bad0;
+      line-height: 1.7;
+      max-width: 600px;
+    }
+
+    form {
+      display: flex;
+      gap: 10px;
+      margin: 30px 0 16px;
+    }
+
+    input {
+      flex: 1;
+      min-width: 0;
+      padding: 17px;
+      border-radius: 12px;
+      border: 1px solid #343d5d;
+      background: #151c30;
+      color: white;
+      font-size: 16px;
+      outline: none;
+    }
+
+    input:focus { border-color: #9aa9ff; }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 0 22px;
+      background: #9aa9ff;
+      color: #10152a;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: 0.6; cursor: wait; }
+
+    #status {
+      color: #b1bad0;
+      margin: 18px 0;
+      line-height: 1.5;
+    }
+
+    .result {
+      background: #151c30;
+      border: 1px solid #29324d;
+      border-radius: 14px;
+      padding: 20px;
+      margin: 14px 0;
+    }
+
+    .result a {
+      color: #aab6ff;
+      font-size: 18px;
+      font-weight: bold;
+      text-decoration: none;
+    }
+
+    .result a:hover { text-decoration: underline; }
+
+    .result p {
+      color: #c0c8dc;
+      line-height: 1.6;
+      margin-bottom: 0;
+    }
+
+    footer {
+      color: #929bb3;
+      font-size: 13px;
+      margin-top: 35px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 540px) {
+      form { flex-direction: column; }
+      button { padding: 16px; }
+      main { margin-top: 40px; }
+    }
+  </style>
+</head>
+<body>
+  <header>Search<span>Wise</span> 🔎</header>
+
+  <main>
+    <div class="tag">Your research starts here</div>
+    <h1>Less searching.<br><span>More discovering.</span></h1>
+    <p class="subtitle">
+      Ask a question or explore a topic. SearchWise gathers web
+      results and brings useful links and descriptions together
+      in one place.
+    </p>
+
+    <form id="searchForm">
+      <input
+        id="query"
+        type="text"
+        placeholder="Try: How does solar energy work?"
+        aria-label="Search question"
+        required
+      >
+      <button id="searchButton" type="submit">Search →</button>
+    </form>
+
+    <div id="status" role="status">
+      Ready when you are. Enter a topic to begin.
+    </div>
+
+    <section id="results" aria-live="polite"></section>
+
+    <footer>
+      Search results are provided by SerpApi. Always open the
+      original sources and check important information yourself.
+    </footer>
+  </main>
+
+  <script>
+    const form = document.getElementById("searchForm");
+    const queryInput = document.getElementById("query");
+    const button = document.getElementById("searchButton");
+    const statusBox = document.getElementById("status");
+    const resultsBox = document.getElementById("results");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const query = queryInput.value.trim();
+      if (!query) return;
+
+      button.disabled = true;
+      button.textContent = "Searching...";
+      statusBox.textContent = "Looking for useful results...";
+      resultsBox.replaceChildren();
+
+      try {
+        const response = await fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Something went wrong.");
+        }
+
+        if (!data.results || data.results.length === 0) {
+          statusBox.textContent =
+            "No results found. Try a different search.";
+          return;
+        }
+
+        statusBox.textContent =
+          `Showing ${data.results.length} results for "${data.query}".`;
+
+const overview = document.createElement("p");
+overview.textContent = `Source overview: ${data.total_results_returned} results from ${data.unique_websites} different websites.`;
+resultsBox.appendChild(overview);
+
+        data.results.forEach((item) => {
+          const card = document.createElement("article");
+          card.className = "result";
+
+          const link = document.createElement("a");
+          link.textContent = item.title;
+          link.href = item.link;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+
+          const description = document.createElement("p");
+          description.textContent = item.snippet;
+
+          card.append(link, description);
+          resultsBox.appendChild(card);
+        });
+      } catch (error) {
+        statusBox.textContent =
+          error.message || "Could not connect. Please try again.";
+      } finally {
+        button.disabled = false;
+        button.textContent = "Search →";
+      }
+    });
+  </script>
+</body>
+</html>
